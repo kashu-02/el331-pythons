@@ -14,7 +14,16 @@ class TextFileCRUD:
         except Exception as e:
             print("An error occurred:", e)
 
-    def insert_data(self, title, text):
+    def insert_data(self, title, file_name):
+        text = ''
+        try:
+            file = open(file_name)
+            text = file.read()
+            print(text)
+        except Exception as e:
+            print(e)
+        finally:
+            file.close()
         try:
             conn = sqlite3.connect(self.dbname)
             cur = conn.cursor()
@@ -67,8 +76,8 @@ def main():
 
         if operation.upper() == "C":
             title = input("Please input the title: ")
-            text = input("Please input the text: ")
-            handler.insert_data(title, text)
+            file_path = input("Please input the file path: ")
+            handler.insert_data(title, file_path)
 
         elif operation.upper() == "R":
             search_term = input("Please input the title or ID to search: ")
