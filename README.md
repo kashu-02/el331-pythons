@@ -1,7 +1,7 @@
 README.md
 English class [EL331 AuthorshipAnalysis Using Python]
 
-Team Name: team Pthons
+Team Name: team Pythons
 
 s1300071 Kasuya Syunsuke 
 s1300004 Ito Yuta
