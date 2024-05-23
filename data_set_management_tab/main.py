@@ -25,7 +25,7 @@ class TextFileCRUD:
     def insert_data(self, title, file_name):
         text = ""
         try:
-            file = open(file_name, encoding="utf8", errors='ignore')
+            file = open(file_name, encoding="utf8", errors="ignore")
             text = file.read()
             print(text)
         except Exception as e:
@@ -122,47 +122,88 @@ class TextFileCRUD:
             print("An error occurred:", e)
 
 
+class Foo:
+    def __init__(self, file_name):
+        self.data = []
+        self.file_name = file_name
+
+    def add(self, memo):
+        self.data.append(memo)
+
+    def show(self):
+        for i in self.data:
+            print(i, type(i))
+
+    def write(self):
+        with open(self.file_name, "w") as file:
+            for item in self.data:
+                try:
+                    file.write(item)
+                except:
+                    for i in item:
+                        file.write(i + " ")
+                file.write("\n")
+        print("Data written to output.txt")
+
+
 def main():
     handler = TextFileCRUD(dbname="FILE.db")
     handler.create_table()
+    file_name = input("Please input file name for output: ")
+    memo = Foo(file_name)
     while True:
         operation = input(
             "Please input the operation (C: Create, R: Read, U: Update, D: Delete, Q: Quit, S: SearchWord): ",
         )
+        memo.add(">>Please input the operation " + operation)
 
         if operation.upper() == "C":
             title = input("Please input the title: ")
+            memo.add("Please input the title: " + title)
             file_path = input("Please input the file path: ")
+            memo.add(" Please input the file path: " + file_path)
             handler.insert_data(title, file_path)
 
         elif operation.upper() == "R":
             search_term = input("Please input the title or ID to search: ")
+            memo.add("Please input the title or ID to search: " + search_term)
             result = handler.read_data(search_term)
             print("\n".join(result))
 
         elif operation.upper() == "U":
             search_term = input("Please input the title or ID to update: ")
+            memo.add("Please input the title or ID to update: " + search_term)
             new_title = input("Please input the new title: ")
+            memo.add("Please input the new title: " + new_title)
             new_text = input("Please input the new text: ")
+            memo.add("Please input the new text: " + new_text)
             handler.update_data(search_term, new_title, new_text)
 
         elif operation.upper() == "D":
             search_term = input("Please input the title or ID to delete: ")
+            memo.add("Please input the title or ID to delete: " + search_term)
             handler.delete_data(search_term)
 
         elif operation.upper() == "S":
             search_term = input("Please input the title or ID to search: ")
-            result = input("Please input the target word: ")
-            title, ans = handler.search_data(search_term, result)
+            memo.add("Please input the title or ID to search: " + search_term)
+            target = input("Please input the target word: ")
+            memo.add("Please input the target word: " + target)
+            title, ans = handler.search_data(search_term, target)
             print(title)
             for i in ans:
                 print(i)
+                # memo.add(i)
+        elif operation == "show":
+            memo.show()
 
         elif operation.upper() == "Q":
+            memo.write()
             break
 
         else:
             print("Invalid operation.")
+            memo.add("Invalid operation.")
 
 
 if __name__ == "__main__":
