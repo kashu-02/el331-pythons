@@ -25,7 +25,7 @@ class TextFileCRUD:
     def insert_data(self, title, file_name):
         text = ""
         try:
-            file = open(file_name)
+            file = open(file_name, encoding="utf8", errors='ignore')
             text = file.read()
             print(text)
         except Exception as e:
