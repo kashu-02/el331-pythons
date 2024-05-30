@@ -3,24 +3,54 @@ import os
 import datetime
 import sqlite3
 
-class TextFileCRUD:
-    def __init__(self, dbname='FILE.db'):
-        self.dbname = dbname
 
+def record_option(func):
+    def wrapper(*args, **kwargs):
+        option_name = func.__name__
+        with open("option_record.txt", "a") as file:
+            try:
+                file.write(option_name + " ")
+                for i in args[1:]:
+                    try:
+                        file.write(i + " ")
+                    except:
+                        file.write(str(i) + " ")
+            except:
+                file.write("error")
+            file.write("\n")
+            file.close()
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+class TextFileCRUD:
+    @classmethod
+    @record_option
+    def __init__(self, dbname="FILE.db"):
+        self.dbname = dbname
+        #   | id | tittle | text |
+
+    @classmethod
+    @record_option
     def create_table(self):
         try:
             conn = sqlite3.connect(self.dbname)
             cur = conn.cursor()
-            cur.execute('CREATE TABLE IF NOT EXISTS texts(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,text TEXT)')
+            cur.execute(
+                "CREATE TABLE IF NOT EXISTS texts(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,text TEXT)",
+            )
             conn.commit()
             conn.close()
         except Exception as e:
             print("An error occurred:", e)
 
+    @classmethod
+    @record_option
     def insert_data(self, title, file_name):
-        text = ''
+        text = ""
         try:
-            file = open(file_name, encoding="utf8", errors='ignore')
+            file = open(file_name, encoding="utf8", errors="ignore")
             text = file.read()
             print(text)
         except Exception as e:
@@ -30,18 +60,23 @@ class TextFileCRUD:
         try:
             conn = sqlite3.connect(self.dbname)
             cur = conn.cursor()
-            cur.execute('INSERT INTO texts(title, text) VALUES (?, ?)', (title, text))
+            cur.execute("INSERT INTO texts(title, text) VALUES (?, ?)", (title, text))
             conn.commit()
             conn.close()
             print("Data has been added.")
         except Exception as e:
             print("An error occurred:", e)
 
+    @classmethod
+    @record_option
     def read_data(self, search_term):
         try:
             conn = sqlite3.connect(self.dbname)
             cur = conn.cursor()
-            cur.execute('SELECT title, text FROM texts WHERE title = ? OR id = ?', (search_term, search_term))
+            cur.execute(
+                "SELECT title, text FROM texts WHERE title = ? OR id = ?",
+                (search_term, search_term),
+            )
             rows = cur.fetchall()
             conn.close()
             formatted_rows = [(f"Title: {row[0]}, Text: {row[1]}") for row in rows]
@@ -49,6 +84,9 @@ class TextFileCRUD:
         except Exception as e:
             print("An error occurred:", e)
 
+
+    @classmethod
+    @record_option
     def search_data(self, search_term, target):
         try:
             conn = sqlite3.connect(self.dbname)
@@ -82,7 +120,7 @@ class TextFileCRUD:
         except Exception as e:
             print("An error occurred:", e)
 
-
+    @classmethod
     def save_search_result(self, file_id, title, search_term, search_results):
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         initials = ''.join(word[0] for word in title.split())
@@ -98,33 +136,46 @@ class TextFileCRUD:
 
         print(f"Search results saved to: {file_path}")
 
+    @classmethod
+    @record_option
     def update_data(self, search_term, new_title, new_text):
         try:
             conn = sqlite3.connect(self.dbname)
             cur = conn.cursor()
-            cur.execute('UPDATE texts SET title = ?, text = ? WHERE title = ? OR id = ?', (new_title, new_text, search_term, search_term))
+            cur.execute(
+                "UPDATE texts SET title = ?, text = ? WHERE title = ? OR id = ?",
+                (new_title, new_text, search_term, search_term),
+            )
             conn.commit()
             conn.close()
             print("Data has been updated.")
         except Exception as e:
             print("An error occurred:", e)
 
+    @classmethod
+    @record_option
     def delete_data(self, search_term):
         try:
             conn = sqlite3.connect(self.dbname)
             cur = conn.cursor()
-            cur.execute('DELETE FROM texts WHERE title = ? OR id = ?', (search_term, search_term))
+            cur.execute(
+                "DELETE FROM texts WHERE title = ? OR id = ?",
+                (search_term, search_term),
+            )
             conn.commit()
             conn.close()
             print("Data has been deleted.")
         except Exception as e:
             print("An error occurred:", e)
 
+
 def main():
-    handler = TextFileCRUD(dbname='FILE.db')
+    handler = TextFileCRUD(dbname="FILE.db")
     handler.create_table()
     while True:
-        operation = input("Please input the operation (C: Create, R: Read, U: Update, D: Delete, Q: Quit): ")
+        operation = input(
+            "Please input the operation (C: Create, R: Read, U: Update, D: Delete, Q: Quit, S: SearchWord): ",
+        )
 
         if operation.upper() == "C":
             title = input("Please input the title: ")
@@ -151,11 +202,20 @@ def main():
             search_term = input("Please input the title or ID to delete: ")
             handler.delete_data(search_term)
 
+        elif operation.upper() == "S":
+            search_term = input("Please input the title or ID to search: ")
+            target = input("Please input the target word: ")
+            title, ans = handler.search_data(search_term, target)
+            print(title)
+            for i in ans:
+                print(i)
+
         elif operation.upper() == "Q":
             break
 
         else:
             print("Invalid operation.")
+
 
 if __name__ == "__main__":
     main()
