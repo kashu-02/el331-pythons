@@ -1,18 +1,38 @@
 import sqlite3
 
-# FILE.dbの中にいろいろなデータベースがある
+
+def record_option(func):
+    def wrapper(*args, **kwargs):
+        option_name = func.__name__
+        with open("option_record.txt", "a") as file:
+            try:
+                file.write(option_name + " ")
+                for i in args[1:]:
+                    try:
+                        file.write(i + " ")
+                    except:
+                        file.write(str(i) + " ")
+            except:
+                file.write("error")
+            file.write("\n")
+            file.close()
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 class TextFileCRUD:
+    @classmethod
+    @record_option
     def __init__(self, dbname="FILE.db"):
         self.dbname = dbname
         #   | id | tittle | text |
 
+    @classmethod
+    @record_option
     def create_table(self):
         try:
-            # ディスク上のデータベースへの接続
             conn = sqlite3.connect(self.dbname)
-            # SQL文を実行し、クエリから結果を取得するために、データベースカーソルを使用
             cur = conn.cursor()
             cur.execute(
                 "CREATE TABLE IF NOT EXISTS texts(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,text TEXT)",
@@ -22,18 +42,18 @@ class TextFileCRUD:
         except Exception as e:
             print("An error occurred:", e)
 
+    @classmethod
+    @record_option
     def insert_data(self, title, file_name):
         text = ""
         try:
-            file = open(file_name, encoding="utf8", errors='ignore')
+            file = open(file_name, encoding="utf8", errors="ignore")
             text = file.read()
             print(text)
         except Exception as e:
             print(e)
         finally:
             file.close()
-        # file_name <= fileのpath
-        # text <= fileの中身
         try:
             conn = sqlite3.connect(self.dbname)
             cur = conn.cursor()
@@ -44,6 +64,8 @@ class TextFileCRUD:
         except Exception as e:
             print("An error occurred:", e)
 
+    @classmethod
+    @record_option
     def read_data(self, search_term):
         try:
             conn = sqlite3.connect(self.dbname)
@@ -52,7 +74,6 @@ class TextFileCRUD:
                 "SELECT title, text FROM texts WHERE title = ? OR id = ?",
                 (search_term, search_term),
             )
-            # rows = [[title, text], [title, text],...]
             rows = cur.fetchall()
             conn.close()
             formatted_rows = [(f"Title: {row[0]}, Text: {row[1]}") for row in rows]
@@ -60,28 +81,23 @@ class TextFileCRUD:
         except Exception as e:
             print("An error occurred:", e)
 
+    @classmethod
+    @record_option
     def search_data(self, search_term, target):
         try:
             conn = sqlite3.connect(self.dbname)
             cur = conn.cursor()
-            #                "SELECT title, text FROM texts WHERE title = ? OR id = ? LIKE ?",
-            #               (search_term, search_term, "%" + target + "%"),
             cur.execute(
                 "SELECT title, text FROM texts WHERE title = ? OR id = ? LIKE ?",
                 (search_term, search_term, "%" + target + "%"),
             )
             # rows = [[title, text], [title, text],...]
             rows = cur.fetchall()
-            # print(rows)
 
-            # print(rows[0])
             title, sentence = rows[0]
             row = list(sentence.split())
-            # print("attention")
-            # print(row)
             result = []
             l = len(row)
-            #            print(row[3])
             for i in range(l):
                 if row[i] == target and 0 <= (i - 5) and (i + 5) <= l:
                     result.append(row[i - 5 : i + 6])
@@ -93,6 +109,8 @@ class TextFileCRUD:
         except Exception as e:
             print("An error occurred:", e)
 
+    @classmethod
+    @record_option
     def update_data(self, search_term, new_title, new_text):
         try:
             conn = sqlite3.connect(self.dbname)
@@ -107,6 +125,8 @@ class TextFileCRUD:
         except Exception as e:
             print("An error occurred:", e)
 
+    @classmethod
+    @record_option
     def delete_data(self, search_term):
         try:
             conn = sqlite3.connect(self.dbname)
@@ -152,8 +172,8 @@ def main():
 
         elif operation.upper() == "S":
             search_term = input("Please input the title or ID to search: ")
-            result = input("Please input the target word: ")
-            title, ans = handler.search_data(search_term, result)
+            target = input("Please input the target word: ")
+            title, ans = handler.search_data(search_term, target)
             print(title)
             for i in ans:
                 print(i)
