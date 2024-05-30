@@ -1,3 +1,6 @@
+import re
+import os
+import datetime
 import sqlite3
 
 class TextFileCRUD:
