@@ -1,3 +1,6 @@
+import re
+import os
+import datetime
 import sqlite3
 
 
@@ -81,33 +84,57 @@ class TextFileCRUD:
         except Exception as e:
             print("An error occurred:", e)
 
+
     @classmethod
     @record_option
     def search_data(self, search_term, target):
         try:
             conn = sqlite3.connect(self.dbname)
             cur = conn.cursor()
-            cur.execute(
-                "SELECT title, text FROM texts WHERE title = ? OR id = ? LIKE ?",
-                (search_term, search_term, "%" + target + "%"),
-            )
-            # rows = [[title, text], [title, text],...]
+            cur.execute("SELECT id, title, text FROM texts WHERE title = ? OR id = ?", (search_term, search_term))
             rows = cur.fetchall()
+            conn.close()
 
-            title, sentence = rows[0]
+            if not rows:
+                print(f"No results found for '{search_term}'.")
+                return
+
+            file_id, title, sentence = rows[0]
             row = list(sentence.split())
             result = []
             l = len(row)
             for i in range(l):
                 if row[i] == target and 0 <= (i - 5) and (i + 5) <= l:
-                    result.append(row[i - 5 : i + 6])
+                    result.append(' '.join(row[i - 5 : i + 6]))
                 elif row[i] == target and (i - 5) < 0 and (i + 5) < l:
-                    result.append(row[0 : i + 6])
+                    result.append(' '.join(row[0 : i + 6]))
                 elif row[i] == target and 0 <= (i - 5) and l < (i + 5):
-                    result.append(row[i - 5 : l])
-            return title, result
+                    result.append(' '.join(row[i - 5 : l]))
+
+            if result:
+                self.save_search_result(file_id, title, target, result)
+                print(f"Search results for '{target}' in '{title}' have been saved.")
+            else:
+                print(f"No occurrences of '{target}' found in '{title}'.")
+
         except Exception as e:
             print("An error occurred:", e)
+
+    @classmethod
+    def save_search_result(self, file_id, title, search_term, search_results):
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        initials = ''.join(word[0] for word in title.split())
+        file_name = f"{file_id}-{timestamp}-{initials}-{search_term}.txt"
+        save_directory = "search_results"
+        if not os.path.exists(save_directory):
+            os.makedirs(save_directory)
+        file_path = os.path.join(save_directory, file_name)
+        with open(file_path, "w", encoding="utf-8") as file:
+            file.write(f"Search results for '{search_term}' in '{title}':\n\n")
+            for result in search_results:
+                file.write(result + "\n")
+
+        print(f"Search results saved to: {file_path}")
 
     @classmethod
     @record_option
@@ -165,6 +192,11 @@ def main():
             new_title = input("Please input the new title: ")
             new_text = input("Please input the new text: ")
             handler.update_data(search_term, new_title, new_text)
+
+        elif operation.upper() == "S":
+            search_term = input("Please input the title or ID to search: ")
+            target = input("Please input the target word: ")
+            handler.search_data(search_term, target)
 
         elif operation.upper() == "D":
             search_term = input("Please input the title or ID to delete: ")
