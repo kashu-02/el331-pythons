@@ -1,7 +1,28 @@
+import re
+import os
+import datetime
 import sqlite3
 from datetime import datetime
 
-# FILE.dbの中にいろいろなデータベースがある
+
+def record_option(func):
+    def wrapper(*args, **kwargs):
+        option_name = func.__name__
+        with open("option_record.txt", "a") as file:
+            try:
+                file.write(option_name + " ")
+                for i in args[1:]:
+                    try:
+                        file.write(i + " ")
+                    except:
+                        file.write(str(i) + " ")
+            except:
+                file.write("error")
+            file.write("\n")
+            file.close()
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 class TextFileCRUD:
@@ -9,15 +30,18 @@ class TextFileCRUD:
     case_number = 0
     case_name = ""
     isHistory = False
+
+    @classmethod
+    @record_option
     def __init__(self, dbname="FILE.db"):
         self.dbname = dbname
         #   | id | tittle | text |
 
+    @classmethod
+    @record_option
     def create_table(self):
         try:
-            # ディスク上のデータベースへの接続
             conn = sqlite3.connect(self.dbname)
-            # SQL文を実行し、クエリから結果を取得するために、データベースカーソルを使用
             cur = conn.cursor()
             cur.execute(
                 "CREATE TABLE IF NOT EXISTS texts(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,text TEXT)",
@@ -33,18 +57,18 @@ class TextFileCRUD:
         except Exception as e:
             print("An error occurred:", e)
 
+    @classmethod
+    @record_option
     def insert_data(self, title, file_name):
         text = ""
         try:
-            file = open(file_name, encoding="utf8", errors='ignore')
+            file = open(file_name, encoding="utf8", errors="ignore")
             text = file.read()
             print(text)
         except Exception as e:
             print(e)
         finally:
             file.close()
-        # file_name <= fileのpath
-        # text <= fileの中身
         try:
             conn = sqlite3.connect(self.dbname)
             cur = conn.cursor()
@@ -55,6 +79,8 @@ class TextFileCRUD:
         except Exception as e:
             print("An error occurred:", e)
 
+    @classmethod
+    @record_option
     def read_data(self, search_term):
         try:
             conn = sqlite3.connect(self.dbname)
@@ -63,7 +89,6 @@ class TextFileCRUD:
                 "SELECT title, text FROM texts WHERE title = ? OR id = ?",
                 (search_term, search_term),
             )
-            # rows = [[title, text], [title, text],...]
             rows = cur.fetchall()
             conn.close()
             formatted_rows = [(f"Title: {row[0]}, Text: {row[1]}") for row in rows]
@@ -71,6 +96,9 @@ class TextFileCRUD:
         except Exception as e:
             print("An error occurred:", e)
 
+
+    @classmethod
+    @record_option
     def search_data(self, search_term, target):
         if self.isHistory:
             search_term = str(self.case_number)
@@ -82,42 +110,53 @@ class TextFileCRUD:
 
             conn.set_trace_callback(trace_callback)  # 追加された部分
             cur = conn.cursor()
-            # cur.execute(
-            #     "SELECT title, text FROM texts WHERE title = ? OR id = ?",
-            #     (search_term, search_term),
-            # )
-            cur.execute(
-                "SELECT title, text FROM texts WHERE title = ? OR id = ? LIKE ?",
-                (search_term, search_term, "%" + target + "%"),
-            )
+            cur.execute("SELECT id, title, text FROM texts WHERE title = ? OR id = ?", (search_term, search_term))
             rows = cur.fetchall()
-            if len(rows) == 0:
-                print("No data found.")
-                return None, None
-            title, sentence = rows[0]
-            row = list(sentence.split())
+            conn.close()
 
+            if not rows:
+                print(f"No results found for '{search_term}'.")
+                return
+
+            file_id, title, sentence = rows[0]
+            row = list(sentence.split())
             result = []
             l = len(row)
-            #            print(row[3])
             for i in range(l):
                 if row[i] == target and 0 <= (i - 5) and (i + 5) <= l:
-                    result.append(row[i - 5 : i + 6])
+                    result.append(' '.join(row[i - 5 : i + 6]))
                 elif row[i] == target and (i - 5) < 0 and (i + 5) < l:
-                    result.append(row[0 : i + 6])
+                    result.append(' '.join(row[0 : i + 6]))
                 elif row[i] == target and 0 <= (i - 5) and l < (i + 5):
-                    result.append(row[i - 5 : l])
-            if self.name == "":
-                name = input("Please input User Name: ")
-                case_number = int(input("Please input Case Number: "))
-                case_name = input("Please input Case Name: ")
-                now = datetime.now()
-                date = now.strftime("%d %b %Y")
-                self.insert_setting(name, case_number, case_name, date)
-            return title, result
+
+                    result.append(' '.join(row[i - 5 : l]))
+
+            if result:
+                self.save_search_result(file_id, title, target, result)
+                print(f"Search results for '{target}' in '{title}' have been saved.")
+            else:
+                print(f"No occurrences of '{target}' found in '{title}'.")
         except Exception as e:
             print("An error occurred:", e)
 
+    @classmethod
+    def save_search_result(self, file_id, title, search_term, search_results):
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        initials = ''.join(word[0] for word in title.split())
+        file_name = f"{file_id}-{timestamp}-{initials}-{search_term}.txt"
+        save_directory = "search_results"
+        if not os.path.exists(save_directory):
+            os.makedirs(save_directory)
+        file_path = os.path.join(save_directory, file_name)
+        with open(file_path, "w", encoding="utf-8") as file:
+            file.write(f"Search results for '{search_term}' in '{title}':\n\n")
+            for result in search_results:
+                file.write(result + "\n")
+
+        print(f"Search results saved to: {file_path}")
+
+    @classmethod
+    @record_option
     def update_data(self, search_term, new_title, new_text):
         try:
             conn = sqlite3.connect(self.dbname)
@@ -132,6 +171,8 @@ class TextFileCRUD:
         except Exception as e:
             print("An error occurred:", e)
 
+    @classmethod
+    @record_option
     def delete_data(self, search_term):
         try:
             conn = sqlite3.connect(self.dbname)
@@ -206,14 +247,19 @@ def main():
             new_text = input("Please input the new text: ")
             handler.update_data(search_term, new_title, new_text)
 
+        elif operation.upper() == "S":
+            search_term = input("Please input the title or ID to search: ")
+            target = input("Please input the target word: ")
+            handler.search_data(search_term, target)
+
         elif operation.upper() == "D":
             search_term = input("Please input the title or ID to delete: ")
             handler.delete_data(search_term)
 
         elif operation.upper() == "S":
             search_term = input("Please input the title or ID to search: ")
-            result = input("Please input the target word: ")
-            title, ans = handler.search_data(search_term, result)
+            target = input("Please input the target word: ")
+            title, ans = handler.search_data(search_term, target)
             if title == None:
                 continue
             print(title)
