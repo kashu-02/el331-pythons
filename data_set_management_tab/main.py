@@ -76,13 +76,24 @@ class TextFileCRUD:
             search_term = str(self.case_number)
         try:
             conn = sqlite3.connect(self.dbname)
+
+            def trace_callback(statement):
+                print(f"Query executed: {statement}")
+
+            conn.set_trace_callback(trace_callback)  # 追加された部分
             cur = conn.cursor()
+            # cur.execute(
+            #     "SELECT title, text FROM texts WHERE title = ? OR id = ?",
+            #     (search_term, search_term),
+            # )
             cur.execute(
-                "SELECT title, text FROM texts WHERE title = ? OR id = ?",
-                (search_term, search_term),
+                "SELECT title, text FROM texts WHERE title = ? OR id = ? LIKE ?",
+                (search_term, search_term, "%" + target + "%"),
             )
             rows = cur.fetchall()
-
+            if len(rows) == 0:
+                print("No data found.")
+                return None, None
             title, sentence = rows[0]
             row = list(sentence.split())
 
@@ -203,6 +214,8 @@ def main():
             search_term = input("Please input the title or ID to search: ")
             result = input("Please input the target word: ")
             title, ans = handler.search_data(search_term, result)
+            if title == None:
+                continue
             print(title)
             for i in ans:
                 print(i)
