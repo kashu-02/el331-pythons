@@ -131,6 +131,15 @@ class TextFileCRUD:
 
                     result.append(' '.join(row[i - 5 : l]))
 
+            if not self.isHistory:
+                if self.name == "":
+                    self.name = input("Please input User Name. ")
+                if self.case_number == 0:
+                    self.case_number = int(input("Please input Case Number. "))
+                if self.case_name == "":
+                    self.case_name = input("Please input Case Name. ")
+                self.insert_setting(self.name, self.case_number, self.case_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
             if result:
                 self.save_search_result(file_id, title, target, result)
                 print(f"Search results for '{target}' in '{title}' have been saved.")
@@ -141,7 +150,7 @@ class TextFileCRUD:
 
     @classmethod
     def save_search_result(self, file_id, title, search_term, search_results):
-        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         initials = ''.join(word[0] for word in title.split())
         file_name = f"{file_id}-{timestamp}-{initials}-{search_term}.txt"
         save_directory = "search_results"
@@ -187,6 +196,9 @@ class TextFileCRUD:
         except Exception as e:
             print("An error occurred:", e)
 
+
+    @classmethod
+    @record_option
     def read_setting(self, name):
         try:
             conn = sqlite3.connect(self.dbname)
@@ -197,6 +209,9 @@ class TextFileCRUD:
             )
 
             rows = cur.fetchall()
+            if not rows:
+                print(f"No results found for '{name}'.")
+                return
 
             conn.close()
 
@@ -205,10 +220,13 @@ class TextFileCRUD:
             self.case_number = int(rows[0][2])
             self.case_name = rows[0][3]
             self.isHistory = True
+            print("Data has been read. Success!")
             return formatted_rows
         except Exception as e:
             print("An error occurred:", e)
 
+    @classmethod
+    @record_option
     def insert_setting(self, name, case_number, case_name, date):
         try:
             conn = sqlite3.connect(self.dbname)
