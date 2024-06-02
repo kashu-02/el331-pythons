@@ -162,3 +162,5 @@ cython_debug/
 
 FILE.db
 
+search_results
+option_record.txt

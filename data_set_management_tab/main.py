@@ -2,6 +2,7 @@ import re
 import os
 import datetime
 import sqlite3
+from datetime import datetime
 
 
 def record_option(func):
@@ -25,6 +26,11 @@ def record_option(func):
 
 
 class TextFileCRUD:
+    name = ""
+    case_number = 0
+    case_name = ""
+    isHistory = False
+
     @classmethod
     @record_option
     def __init__(self, dbname="FILE.db"):
@@ -39,6 +45,12 @@ class TextFileCRUD:
             cur = conn.cursor()
             cur.execute(
                 "CREATE TABLE IF NOT EXISTS texts(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,text TEXT)",
+            )
+            # cur.execute(
+            #     "CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT)",
+            # )
+            cur.execute(
+                "CREATE TABLE IF NOT EXISTS settings(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,case_number INTEGER,case_name TEXT,date TEXT)",
             )
             conn.commit()
             conn.close()
@@ -88,8 +100,15 @@ class TextFileCRUD:
     @classmethod
     @record_option
     def search_data(self, search_term, target):
+        if self.isHistory:
+            search_term = str(self.case_number)
         try:
             conn = sqlite3.connect(self.dbname)
+
+            def trace_callback(statement):
+                print(f"Query executed: {statement}")
+
+            conn.set_trace_callback(trace_callback)  # 追加された部分
             cur = conn.cursor()
             cur.execute("SELECT id, title, text FROM texts WHERE title = ? OR id = ?", (search_term, search_term))
             rows = cur.fetchall()
@@ -109,20 +128,29 @@ class TextFileCRUD:
                 elif row[i] == target and (i - 5) < 0 and (i + 5) < l:
                     result.append(' '.join(row[0 : i + 6]))
                 elif row[i] == target and 0 <= (i - 5) and l < (i + 5):
+
                     result.append(' '.join(row[i - 5 : l]))
+
+            if not self.isHistory:
+                if self.name == "":
+                    self.name = input("Please input User Name. ")
+                if self.case_number == 0:
+                    self.case_number = int(input("Please input Case Number. "))
+                if self.case_name == "":
+                    self.case_name = input("Please input Case Name. ")
+                self.insert_setting(self.name, self.case_number, self.case_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
             if result:
                 self.save_search_result(file_id, title, target, result)
                 print(f"Search results for '{target}' in '{title}' have been saved.")
             else:
                 print(f"No occurrences of '{target}' found in '{title}'.")
-
         except Exception as e:
             print("An error occurred:", e)
 
     @classmethod
     def save_search_result(self, file_id, title, search_term, search_results):
-        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         initials = ''.join(word[0] for word in title.split())
         file_name = f"{file_id}-{timestamp}-{initials}-{search_term}.txt"
         save_directory = "search_results"
@@ -169,12 +197,56 @@ class TextFileCRUD:
             print("An error occurred:", e)
 
 
+    @classmethod
+    @record_option
+    def read_setting(self, name):
+        try:
+            conn = sqlite3.connect(self.dbname)
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT id, name, case_number, case_name, date FROM settings WHERE name = ?",
+                (name,),
+            )
+
+            rows = cur.fetchall()
+            if not rows:
+                print(f"No results found for '{name}'.")
+                return
+
+            conn.close()
+
+            formatted_rows = [(f"ID: {row[0]}, Name: {row[1]}, Case Number: {row[2]}, Case Name: {row[3]}, Date: {row[4]}") for row in rows]
+            self.name = rows[0][1]
+            self.case_number = int(rows[0][2])
+            self.case_name = rows[0][3]
+            self.isHistory = True
+            print("Data has been read. Success!")
+            return formatted_rows
+        except Exception as e:
+            print("An error occurred:", e)
+
+    @classmethod
+    @record_option
+    def insert_setting(self, name, case_number, case_name, date):
+        try:
+            conn = sqlite3.connect(self.dbname)
+            cur = conn.cursor()
+            cur.execute("INSERT INTO settings(name, case_number, case_name, date) VALUES (?, ?, ?, ?)", (name, case_number, case_name, date))
+            conn.commit()
+            conn.close()
+            print("Data has been added.")
+            self.isHistory = True
+        except Exception as e:
+            print("An error occurred:", e)
+
+
+
 def main():
     handler = TextFileCRUD(dbname="FILE.db")
     handler.create_table()
     while True:
         operation = input(
-            "Please input the operation (C: Create, R: Read, U: Update, D: Delete, Q: Quit, S: SearchWord): ",
+            "Please input the operation (C: Create, R: Read, U: Update, D: Delete, Q: Quit, S: SearchWord, L: Login): "
         )
 
         if operation.upper() == "C":
@@ -206,12 +278,22 @@ def main():
             search_term = input("Please input the title or ID to search: ")
             target = input("Please input the target word: ")
             title, ans = handler.search_data(search_term, target)
+            if title == None:
+                continue
             print(title)
             for i in ans:
                 print(i)
 
         elif operation.upper() == "Q":
             break
+
+        elif operation.upper() == "L":
+            name = input("Please input User Name. ")
+            if name == "":
+                continue
+            result = handler.read_setting(name)
+            print(result)
+            print("Login Success!")
 
         else:
             print("Invalid operation.")
